@@ -24,6 +24,8 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 
+//TODO: Add DND server
+//TODO: Display RSS feed
 app.UseHttpsRedirection();
 
 app.UseStaticFiles();

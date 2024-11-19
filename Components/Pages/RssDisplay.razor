@@ -1,0 +1,77 @@
+﻿@page "/rssdisplay"
+@using System.Xml
+@using System.ServiceModel.Syndication
+@attribute [StreamRendering]
+
+<PageTitle>RssDisplay</PageTitle>
+
+<h1>RssDisplay</h1>
+
+<p>This component demonstrates showing \#MostlyBalanced news sources via RSS.</p>
+
+@if (forecasts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp. (C)</th>
+                <th>Temp. (F)</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var forecast in forecasts)
+            {
+                <tr>
+                    <td>@forecast.Date.ToShortDateString()</td>
+                    <td>@forecast.TemperatureC</td>
+                    <td>@forecast.TemperatureF</td>
+                    <td>@forecast.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private WeatherForecast[]? forecasts;
+
+    protected override void OnInitialized()
+    {
+        string url = "https://news.google.com/rss/search?q=site%3Areuters.com%20when%3A1d&hl=en-US&gl=US&ceid=US%3Aen";
+        XmlReader reader = XmlReader.Create(url);
+        SyndicationFeed feed = SyndicationFeed.Load(reader);
+        
+        reader.Close();
+        foreach (SyndicationItem item in feed.Items)
+        {
+            String subject = item.Title.Text;    
+            String summary = item.Summary.Text;
+            Console.WriteLine($"Title: {item.Title.Text}");
+            Console.WriteLine($"Published Date: {item.PublishDate.DateTime}");
+        }
+        return;
+    }
+
+    private class WeatherForecast
+    {
+        public DateOnly Date { get; set; }
+        public int TemperatureC { get; set; }
+        public string? Summary { get; set; }
+        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+    }
+}
+    using System.Runtime.CompilerServices;
+
+#line default
+#line hidden
+#nullable disable
+#nullable restore
+#line 4 "/home/jlites/Code/C_Sharp/DO_Server/BlazorApp1/Components/Pages/RssDisplay.razor"
+le restore
+#line 4 "/home/jlites/Code/C_Sharp/DO_Server/BlazorApp1/Components/Pages/RssDisplay.razor"
