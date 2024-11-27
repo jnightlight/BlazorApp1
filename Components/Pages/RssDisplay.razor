@@ -15,7 +15,12 @@
 }
 else
 {
-    <table class="table">
+    @code
+    {
+    }
+    <!-- <p @onclick="@(() => updateContent(siteName))" id="site-@siteName"> @siteName </p>-->
+
+    <table class="table" >
         <thead>
             <tr>
                 <th>Title</th>
@@ -27,7 +32,7 @@ else
             @foreach (var rssInfo in rssInfos)
             {
                 <tr>
-                    <td><a href="@rssInfo.Link">@rssInfo.Title</a></td>
+                    <td><a href="@rssInfo.Link" target="_blank">@rssInfo.Title</a></td>
                     <td>@rssInfo.Source</td>
                     <td>@rssInfo.DateString</td>
                 </tr>
@@ -37,6 +42,10 @@ else
 }
 
 @code {
+    public void updateContent(String siteName)
+    {
+    }
+
     private List<RssInfo>? rssInfos;
     private static String[] rssSites = new String[] {
         "https://news.google.com/rss/search?q=site%3Areuters.com%20when%3A12h&hl=en-US&gl=US&ceid=US%3Aen",
@@ -51,10 +60,12 @@ else
         "ASAN"
     };
 
+    //@Todo: make a variable like: "DisplayArticles", and change what that is based on the "onClick" siteName
     protected override async Task OnInitializedAsync()
     {
         await Task.Delay(0);
 
+        List<RssSource> rssSourceList = new List<RssSource>();
         List<RssInfo> rssInfoCache = new List<RssInfo>();
         int listLocation = 0;
         foreach(String rssFullUri in rssSites)
@@ -70,19 +81,22 @@ else
                 RssInfo info = new RssInfo();
                 info.Title = item.Title.Text;
                 info.Summary = item.Summary.Text;
-                info.Link = curSource.Uri;
+                info.Link = item.Links[0].Uri.AbsoluteUri;
                 info.Date = item.PublishDate;
                 info.DateString = item.PublishDate.ToString();
                 info.Source = curSource.NewsSource;
+                curSource.Articles.Add(info);
                 rssInfoCache.Add(info);
             }
+            curSource.Articles = curSource.Articles.OrderBy(o=>o.Date).Reverse().ToList();
+            rssSourceList.Add(curSource);
         }
         List<RssInfo> SortedList = rssInfoCache.OrderBy(o=>o.Date).Reverse().ToList();
         rssInfos = SortedList.GetRange(0, 100);
         return;
     }
 
-    private class RssInfo
+    protected class RssInfo
     {
         public DateTimeOffset? Date { get; set; }
         public string? DateString { get; set; }
@@ -98,10 +112,15 @@ else
         {
             this.Uri = UriIn;
             this.NewsSource = source;
+            this.Articles = new List<RssInfo>();
+            this.ContentString = "";
         }
 
         public string Uri { get; set; }
         public string NewsSource { get; set; }
+
+        public List<RssInfo> Articles { get; set; }
+        public String ContentString { get; set; }
 
         }
 }
