@@ -18,18 +18,18 @@ else
     <table class="table">
         <thead>
             <tr>
-                <th>Date</th>
-                <th>Temp. (C)</th>
-                <th>Temp. (F)</th>
-                <th>Summary</th>
+                <th>Title</th>
+                <th>Source</th>
+                <th>Publishing time</th>
             </tr>
         </thead>
         <tbody>
             @foreach (var rssInfo in rssInfos)
             {
                 <tr>
-                    <td>@rssInfo.Title</td>
-                    <td>@rssInfo.Summary</td>
+                    <td><a href="@rssInfo.Link">@rssInfo.Title</a></td>
+                    <td>@rssInfo.Source</td>
+                    <td>@rssInfo.DateString</td>
                 </tr>
             }
         </tbody>
@@ -38,41 +38,70 @@ else
 
 @code {
     private List<RssInfo>? rssInfos;
+    private static String[] rssSites = new String[] {
+        "https://news.google.com/rss/search?q=site%3Areuters.com%20when%3A12h&hl=en-US&gl=US&ceid=US%3Aen",
+        "https://news.google.com/rss/search?q=site%3Aapnews.com%20when%3A1d&hl=en-US&gl=US&ceid=US%3Aen",
+        "https://news.google.com/rss/search?q=site%3Ausafacts.org%20when%3A7d&hl=en-US&gl=US&ceid=US%3Aen",
+        "https://news.google.com/rss/search?q=site%3Asan.com%20when%3A1d&hl=en-US&gl=US&ceid=US%3Aen"
+    };
+    private static String[] rssSiteNames = new String[] {
+        "Reuters",
+        "APNews",
+        "USAFacts",
+        "ASAN"
+    };
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        string url = "https://news.google.com/rss/search?q=site%3Areuters.com%20when%3A1d&hl=en-US&gl=US&ceid=US%3Aen";
-        XmlReader reader = XmlReader.Create(url);
-        SyndicationFeed feed = SyndicationFeed.Load(reader);
-        
-        reader.Close();
+        await Task.Delay(0);
+
         List<RssInfo> rssInfoCache = new List<RssInfo>();
-        foreach (SyndicationItem item in feed.Items)
+        int listLocation = 0;
+        foreach(String rssFullUri in rssSites)
         {
-            RssInfo info = new RssInfo();
-            info.Title = item.Title.Text;    
-            info.Summary = item.Summary.Text;
-            //info.Date = item.PublishDate.DateTime;
-            rssInfoCache.Append(info);
-            Console.WriteLine("HAHAHA");
+            RssSource curSource = new RssSource(rssFullUri, rssSiteNames[listLocation]);
+            listLocation++;
+            XmlReader reader = XmlReader.Create(rssFullUri);
+            SyndicationFeed feed = SyndicationFeed.Load(reader);
+            
+            reader.Close();
+            foreach (SyndicationItem item in feed.Items)
+            {
+                RssInfo info = new RssInfo();
+                info.Title = item.Title.Text;
+                info.Summary = item.Summary.Text;
+                info.Link = curSource.Uri;
+                info.Date = item.PublishDate;
+                info.DateString = item.PublishDate.ToString();
+                info.Source = curSource.NewsSource;
+                rssInfoCache.Add(info);
+            }
         }
-        Console.WriteLine("BAHAHA");
-        rssInfos = rssInfoCache;
+        List<RssInfo> SortedList = rssInfoCache.OrderBy(o=>o.Date).Reverse().ToList();
+        rssInfos = SortedList.GetRange(0, 100);
         return;
-    }
-
-    private class WeatherForecast
-    {
-        public DateOnly Date { get; set; }
-        public int TemperatureC { get; set; }
-        public string? Summary { get; set; }
-        public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
     }
 
     private class RssInfo
     {
-        public DateTime? Date { get; set; }
+        public DateTimeOffset? Date { get; set; }
+        public string? DateString { get; set; }
         public string? Title { get; set; }
         public string? Summary { get; set; }
-    }
+        public string? Link { get; set; }
+        public string? Source { get; set; }
+        }
+
+    protected class RssSource
+    {
+        public RssSource(string UriIn, string source)
+        {
+            this.Uri = UriIn;
+            this.NewsSource = source;
+        }
+
+        public string Uri { get; set; }
+        public string NewsSource { get; set; }
+
+        }
 }
