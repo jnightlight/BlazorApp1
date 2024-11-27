@@ -2,6 +2,7 @@
 @using System.Xml
 @using System.ServiceModel.Syndication
 @attribute [StreamRendering]
+@rendermode InteractiveServer
 
 <PageTitle>RssDisplay</PageTitle>
 
@@ -17,10 +18,11 @@ else
 {
     @code
     {
+        private String tableDisplay = "display:block";
     }
-    <!-- <p @onclick="@(() => updateContent(siteName))" id="site-@siteName"> @siteName </p>-->
+    <button @onclick="@(e => updateContent())" > CLICK ME </button>
 
-    <table class="table" >
+    <table class="table" style="@tableDisplay">
         <thead>
             <tr>
                 <th>Title</th>
@@ -42,8 +44,15 @@ else
 }
 
 @code {
-    public void updateContent(String siteName)
+    public void updateContent()
     {
+        if(tableDisplay == "display:block")
+        {
+            tableDisplay = "display:none";
+        } else {
+            tableDisplay = "display:block";
+        }
+        Console.WriteLine("CLICKED IT");
     }
 
     private List<RssInfo>? rssInfos;
