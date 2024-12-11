@@ -8,7 +8,8 @@
 
 <h1>RssDisplay</h1>
 
-<p>This component demonstrates showing \#MostlyBalanced news sources via RSS.</p>
+<div> <p>This component demonstrates showing #MostlyBalanced news sources via RSS. 
+<a href='#' data-toggle="tooltip" title="@dataMessage">Hover over this text for more granularity regarding sources</a> </p><p></p></div>
 
 @if (rssInfos == null)
 {
@@ -20,7 +21,12 @@ else
     {
         private String tableDisplay = "display:block";
     }
-    <button @onclick="@(e => updateContent())" > CLICK ME </button>
+    <button @onclick="@(e => updateContent(0))" > Show All </button>
+    @foreach (var source in sources)
+    {
+        var index = sources.IndexOf(source) + 1;
+        <button @onclick="@(() => { updateContent(index); })" > @source.NewsSource </button>
+    }
 
     <table class="table" style="@tableDisplay">
         <thead>
@@ -41,75 +47,128 @@ else
             }
         </tbody>
     </table>
+
 }
 
 @code {
-    public void updateContent()
+    public void updateContent(int sourceIndex)
     {
-        if(tableDisplay == "display:block")
+        if (sourceIndex == 0)
         {
-            tableDisplay = "display:none";
-        } else {
-            tableDisplay = "display:block";
+            rssInfos = new List<RssInfo>(allInfos);
         }
-        Console.WriteLine("CLICKED IT");
+        else
+        {
+            rssInfos.Clear();
+            var titleSet = new HashSet<String>();
+            var articleList = sources[sourceIndex - 1].Articles.GetRange(0, sources[sourceIndex - 1].Articles.Count());
+            var guiArticleIndex = 0;
+            var articleIndex = 0;
+            while(guiArticleIndex < ARTICLE_TABLE_MAX_DISPLAY && articleIndex < articleList.Count())
+            {
+                var article = articleList[articleIndex];
+                if (!titleSet.Contains(article.Title))
+                {
+                    //SAN has a lot of "page" and "archive" spam, so...removing that as a special case
+                    if (sources[sourceIndex - 1].NewsSource == "SAN" && 
+                            (article.Title.Contains("Archive") || article.Title.Contains("Page" ))
+                        )
+                    {
+                        Console.WriteLine("Filtering useless SA page");
+                    }
+                    else
+                    {
+                        rssInfos.Add(articleList[articleIndex]);
+                        guiArticleIndex++;
+                        titleSet.Add(article.Title);
+                    }
+                }
+                articleIndex++;
+            }
+        }
     }
 
+    private String dataMessage;
     private List<RssInfo>? rssInfos;
-    private static String[] rssSites = new String[] {
-        "https://news.google.com/rss/search?q=site%3Areuters.com%20when%3A12h&hl=en-US&gl=US&ceid=US%3Aen",
-        "https://news.google.com/rss/search?q=site%3Aapnews.com%20when%3A1d&hl=en-US&gl=US&ceid=US%3Aen",
-        "https://news.google.com/rss/search?q=site%3Ausafacts.org%20when%3A7d&hl=en-US&gl=US&ceid=US%3Aen",
-        "https://news.google.com/rss/search?q=site%3Asan.com%20when%3A1d&hl=en-US&gl=US&ceid=US%3Aen"
-    };
-    private static String[] rssSiteNames = new String[] {
-        "Reuters",
-        "APNews",
-        "USAFacts",
-        "ASAN"
-    };
+    private List<RssInfo>? allInfos;
+    private const int ARTICLE_TABLE_MAX_DISPLAY = 50;
+    private static List<string> dataMessageLines = new List<string>() {
+    "In the interest of open and honest reporting, here are the source links for data. ",
+    "I've built this page on top of Google News's RSS feeds, which may or may not catch all articles from a given publication. ",
+    "I have included some filtering data from some of the sources, mostly to remove unneccessary spam from the RSS feeds that don't seem to be real \"articles\", more search and personal updates. I'll include any filtering terms used in this documentation. Sources:",
+    "\n\n",
+        };
+    private static List<RssSource> sources = new List<RssSource>{
+        new RssSource("https://news.google.com/rss/search?q=site%3Areuters.com%20when%3A3d&hl=en-US&gl=US&ceid=US%3Aen", "Reuters"),
+        new RssSource("https://news.google.com/rss/search?q=site%3Aapnews.com%20when%3A3d&hl=en-US&gl=US&ceid=US%3Aen", "AP News"),
+        new RssSource("https://news.google.com/rss/search?q=site%3Ausafacts.org%20when%3A14d&hl=en-US&gl=US&ceid=US%3Aen", "USA Facts"),
+        new RssSource("https://news.google.com/rss/search?q=site%3Asan.com%20when%3A3d&hl=en-US&gl=US&ceid=US%3Aen", "SAN", ["Page", "Archive"]),
+        };
+
+    private bool[] Edits { get; set; }
 
     //@Todo: make a variable like: "DisplayArticles", and change what that is based on the "onClick" siteName
     protected override async Task OnInitializedAsync()
     {
+        Edits = new bool[sources.Count];
         await Task.Delay(0);
 
-        List<RssSource> rssSourceList = new List<RssSource>();
         List<RssInfo> rssInfoCache = new List<RssInfo>();
         int listLocation = 0;
-        foreach(String rssFullUri in rssSites)
+        foreach(RssSource source in sources)
         {
-            RssSource curSource = new RssSource(rssFullUri, rssSiteNames[listLocation]);
             listLocation++;
-            XmlReader reader = XmlReader.Create(rssFullUri);
+            XmlReader reader = XmlReader.Create(source.Uri);
             SyndicationFeed feed = SyndicationFeed.Load(reader);
             
             reader.Close();
             foreach (SyndicationItem item in feed.Items)
             {
+                bool filterWordsPresent = source.FilteredWords.Any(s=>item.Title.Text.Contains(s));
+                if (filterWordsPresent) { continue; }
                 RssInfo info = new RssInfo();
                 info.Title = item.Title.Text;
                 info.Summary = item.Summary.Text;
                 info.Link = item.Links[0].Uri.AbsoluteUri;
                 info.Date = item.PublishDate;
                 info.DateString = item.PublishDate.ToString();
-                info.Source = curSource.NewsSource;
-                curSource.Articles.Add(info);
+                info.Source = source.NewsSource;
+
+                source.Articles.Add(info);
                 rssInfoCache.Add(info);
             }
-            curSource.Articles = curSource.Articles.OrderBy(o=>o.Date).Reverse().ToList();
-            rssSourceList.Add(curSource);
+            source.Articles = source.Articles.OrderBy(o=>o.Date).Reverse().ToList();
         }
         List<RssInfo> SortedList = rssInfoCache.OrderBy(o=>o.Date).Reverse().ToList();
-        rssInfos = SortedList.GetRange(0, 100);
+        rssInfos = SortedList.GetRange(0, ARTICLE_TABLE_MAX_DISPLAY);
+        allInfos = SortedList.GetRange(0, ARTICLE_TABLE_MAX_DISPLAY);
+        dataMessage = FormatDataMessage(sources);
         return;
+    }
+
+    private string FormatDataMessage(List<RssSource> rssSources)
+    {
+        string dataMessage = "";
+        foreach( string line in dataMessageLines)
+        {
+            dataMessage += line;
+        }
+        foreach(RssSource source in rssSources)
+        {
+            string filteredWords = String.Join(", ",source.FilteredWords.ToArray());
+            dataMessage += "-----------------------------------------------------------------\n";
+            dataMessage += "SourceName: " + source.NewsSource + "\n";
+            dataMessage += "Url: " + source.Uri + "\n";
+            dataMessage += "Removed Words from Article: " + filteredWords + "\n";
+        }
+        return dataMessage;
     }
 
     protected class RssInfo
     {
         public DateTimeOffset? Date { get; set; }
         public string? DateString { get; set; }
-        public string? Title { get; set; }
+        public string Title { get; set; } = "DEFAULT TITLE THIS IS AN ERROR JACOB";
         public string? Summary { get; set; }
         public string? Link { get; set; }
         public string? Source { get; set; }
@@ -117,19 +176,21 @@ else
 
     protected class RssSource
     {
-        public RssSource(string UriIn, string source)
+        public RssSource(string UriIn, string source, List<string>? filteredWords = null)
         {
             this.Uri = UriIn;
             this.NewsSource = source;
             this.Articles = new List<RssInfo>();
-            this.ContentString = "";
+            this.Display = false;
+            this.FilteredWords = filteredWords ?? [];
         }
 
         public string Uri { get; set; }
         public string NewsSource { get; set; }
+        public List<string> FilteredWords { get; set; }
 
         public List<RssInfo> Articles { get; set; }
-        public String ContentString { get; set; }
+        public Boolean Display { get; set; }
 
-        }
+    }
 }
