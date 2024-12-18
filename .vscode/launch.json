@@ -5,19 +5,22 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Server",
+            "name": "Debug Jake-Server",
             "type": "coreclr",
             "request": "launch",
             "program": "${workspaceFolder}/bin/Release/net8.0/BlazorApp1.dll",
+            "preLaunchTask": "publishAndBuild",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
+            "launchBrowser": {
+                "enabled": true
+            },
             "symbolOptions": {
                 "searchPaths": [],
-                "searchMicrosoftSymbolServer": false,
-                "searchNuGetOrgSymbolServer": false
+                "searchMicrosoftSymbolServer": true,
+                "searchNuGetOrgSymbolServer": true
             },
-            
         }
    ]
 }
